@@ -5,6 +5,7 @@ import pdf from "pdf-parse";
 import { supabase } from "../lib/supabase.js";
 import { getOptionalEnv } from "../lib/env.js";
 import { storeDocumentChunks } from "../lib/rag.js";
+import { withCors } from "../lib/cors.js";
 
 const SUPPORTED_TYPES = new Set(["application/pdf", "text/plain", "text/markdown"]);
 
@@ -54,7 +55,7 @@ export const config = {
   },
 };
 
-export default async function handler(req, res) {
+export default withCors(async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Metodo nao permitido." });
   }
@@ -106,4 +107,4 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
-}
+});

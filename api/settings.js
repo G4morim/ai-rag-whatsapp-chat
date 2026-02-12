@@ -1,5 +1,6 @@
 import { loadSettings, maskApiKey } from "./lib/settings.js";
 import { supabase } from "./lib/supabase.js";
+import { withCors } from "./lib/cors.js";
 
 async function readJson(req) {
   if (req.body && typeof req.body === "object") return req.body;
@@ -11,7 +12,7 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
-export default async function handler(req, res) {
+export default withCors(async function handler(req, res) {
   if (req.method === "GET") {
     try {
       const settings = await loadSettings();
@@ -64,4 +65,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).json({ error: "Metodo nao permitido." });
-}
+});

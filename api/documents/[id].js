@@ -1,7 +1,8 @@
 import { supabase } from "../lib/supabase.js";
 import { getOptionalEnv } from "../lib/env.js";
+import { withCors } from "../lib/cors.js";
 
-export default async function handler(req, res) {
+export default withCors(async function handler(req, res) {
   if (req.method !== "DELETE") {
     return res.status(405).json({ error: "Metodo nao permitido." });
   }
@@ -27,4 +28,4 @@ export default async function handler(req, res) {
   await supabase.from("documents").delete().eq("id", id);
 
   return res.status(200).json({ success: true });
-}
+});

@@ -3,6 +3,7 @@ import { loadSettings } from "../lib/settings.js";
 import { requestChatCompletion } from "../lib/openrouter.js";
 import { retrieveContext } from "../lib/rag.js";
 import { supabase } from "../lib/supabase.js";
+import { withCors } from "../lib/cors.js";
 
 async function readJson(req) {
   if (req.body && typeof req.body === "object") return req.body;
@@ -46,7 +47,7 @@ function resolveIncoming(body) {
   return { from, text };
 }
 
-export default async function handler(req, res) {
+export default withCors(async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Metodo nao permitido." });
   }
@@ -105,4 +106,4 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
-}
+});

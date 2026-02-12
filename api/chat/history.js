@@ -1,10 +1,10 @@
 import { supabase } from "../lib/supabase.js";
+import { withCors } from "../lib/cors.js";
 
-export default async function handler(req, res) {
+export default withCors(async function handler(req, res) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Metodo nao permitido." });
-  }
-
+});
   const conversationId = req.query.conversationId;
 
   if (!conversationId) {

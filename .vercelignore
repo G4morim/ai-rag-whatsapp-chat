@@ -1,0 +1,8 @@
+backend
+node_modules
+.git
+.github
+.vscode
+*.log
+.env
+.env.local

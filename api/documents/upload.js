@@ -8,6 +8,22 @@ import { storeDocumentChunks } from "../lib/rag.js";
 
 const SUPPORTED_TYPES = new Set(["application/pdf", "text/plain", "text/markdown"]);
 
+function sanitizeFilename(value) {
+  const normalized = value.normalize("NFKD").replace(/[^\x20-\x7E]/g, "");
+  const withoutSeparators = normalized.replace(/[\\/]/g, " ");
+  const cleaned = withoutSeparators
+    .replace(/[^A-Za-z0-9._ -]/g, "_")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) {
+    const extension = normalized.match(/\.([A-Za-z0-9]{1,10})$/)?.[1]?.toLowerCase();
+    return extension ? `document.${extension}` : "document";
+  }
+
+  return cleaned;
+}
+
 function isSupportedMime(mime) {
   if (SUPPORTED_TYPES.has(mime)) return true;
   return mime.endsWith("/markdown") || mime.endsWith("/x-markdown");
@@ -59,7 +75,8 @@ export default async function handler(req, res) {
     const buffer = await readFile(file.filepath);
     const bucket = getOptionalEnv("SUPABASE_DOCS_BUCKET", "documents");
     const documentId = randomUUID();
-    const filename = file.originalFilename ?? "document";
+    const rawFilename = file.originalFilename ?? "document";
+    const filename = sanitizeFilename(rawFilename);
     const storagePath = `${documentId}/${filename}`;
 
     const { error: storageError } = await supabase.storage

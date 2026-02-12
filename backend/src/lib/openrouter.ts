@@ -14,10 +14,17 @@ export async function requestChatCompletion(messages: ChatMessage[]): Promise<st
     process.env.OPENROUTER_MODEL ??
     "gpt-4.1-mini";
   const baseUrl = getOptionalEnv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1");
+  const maxTokens = Number(getOptionalEnv("OPENROUTER_MAX_TOKENS", "0"));
 
   if (!apiKey || !model) {
     throw new Error("Configuracao do OpenRouter ausente.");
   }
+
+  const body = {
+    model,
+    messages,
+    ...(Number.isFinite(maxTokens) && maxTokens > 0 ? { max_tokens: maxTokens } : {}),
+  };
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -25,7 +32,7 @@ export async function requestChatCompletion(messages: ChatMessage[]): Promise<st
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ model, messages }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {

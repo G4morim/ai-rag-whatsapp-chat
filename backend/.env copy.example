@@ -1,0 +1,10 @@
+SUPABASE_URL=https://shefrkmkcioqabuawgeq.supabase.co
+SUPABASE_ANON_KEY=sb_secret_bUKxEj20PnrIEJSi7c2byg_GuzVC8q2
+SUPABASE_DOCS_BUCKET=documents
+OPENROUTER_MODEL=gpt-4.1-mini
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_EMBEDDINGS_MODEL=text-embedding-3-small
+OPENROUTER_MAX_TOKENS=2048
+EVOLUTION_API_URL=https://evodevs.cordex.ai
+EVOLUTION_API_KEY=V0e3EBKbaJFnKREYfFCqOnoi904vAPV7
+CORS_ORIGIN=http://localhost:5173

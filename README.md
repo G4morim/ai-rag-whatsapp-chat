@@ -22,6 +22,7 @@ SUPABASE_DOCS_BUCKET=documents
 OPENROUTER_MODEL=gpt-4.1-mini
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 OPENROUTER_EMBEDDINGS_MODEL=text-embedding-3-small
+OPENROUTER_MAX_TOKENS=2048
 EVOLUTION_API_URL=https://evodevs.cordex.ai
 EVOLUTION_API_KEY=<sua-chave>
 CORS_ORIGIN=http://localhost:5173

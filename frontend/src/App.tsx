@@ -68,9 +68,10 @@ function App() {
           setDocuments(data);
         }
 
-        if (conversationId) {
+        const savedConvId = localStorage.getItem("conversationId");
+        if (savedConvId) {
           const historyRes = await fetch(
-            `/api/chat/history?conversationId=${conversationId}`,
+            `/api/chat/history?conversationId=${savedConvId}`,
           );
           if (historyRes.ok) {
             const history = await historyRes.json();
@@ -83,7 +84,7 @@ function App() {
     }
 
     loadInitial();
-  }, [conversationId]);
+  }, []);
 
   async function handleSaveSettings(event: React.FormEvent) {
     event.preventDefault();

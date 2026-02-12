@@ -11,6 +11,22 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const SUPPORTED_TYPES = new Set(["application/pdf", "text/plain", "text/markdown"]);
 
+function sanitizeFilename(value: string): string {
+  const normalized = value.normalize("NFKD").replace(/[^\x20-\x7E]/g, "");
+  const withoutSeparators = normalized.replace(/[\\/]/g, " ");
+  const cleaned = withoutSeparators
+    .replace(/[^A-Za-z0-9._ -]/g, "_")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) {
+    const extension = normalized.match(/\.([A-Za-z0-9]{1,10})$/)?.[1]?.toLowerCase();
+    return extension ? `document.${extension}` : "document";
+  }
+
+  return cleaned;
+}
+
 function isSupportedMime(mime: string): boolean {
   if (SUPPORTED_TYPES.has(mime)) return true;
   return mime.endsWith("/markdown") || mime.endsWith("/x-markdown");
@@ -51,7 +67,8 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   try {
     const bucket = getOptionalEnv("SUPABASE_DOCS_BUCKET", "documents");
     const documentId = randomUUID();
-    const storagePath = `${documentId}/${file.originalname}`;
+    const safeFilename = sanitizeFilename(file.originalname || "document");
+    const storagePath = `${documentId}/${safeFilename}`;
 
     const { error: storageError } = await supabase.storage
       .from(bucket)
@@ -63,7 +80,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
     const { error: insertError } = await supabase.from("documents").insert({
       id: documentId,
-      filename: file.originalname,
+      filename: safeFilename,
       mime_type: file.mimetype,
       size: file.size,
       storage_path: storagePath,
@@ -76,7 +93,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     const text = await extractText(file.buffer, file.mimetype);
     await storeDocumentChunks(documentId, text);
 
-    return res.json({ id: documentId, filename: file.originalname });
+    return res.json({ id: documentId, filename: safeFilename });
   } catch (error) {
     return res.status(500).json({ error: (error as Error).message });
   }

@@ -1,35 +1,335 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useMemo, useState } from "react";
+import "./App.css";
+
+type Settings = {
+  OPENROUTER_API_KEY: string;
+  OPENROUTER_MODEL: string;
+  OPENROUTER_EMBEDDINGS_MODEL: string;
+  SYSTEM_PROMPT: string;
+};
+
+type DocumentItem = {
+  id: string;
+  filename: string;
+  mime_type: string;
+  size: number;
+  created_at: string;
+};
+
+type MessageItem = {
+  id?: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at?: string;
+};
+
+const EMPTY_SETTINGS: Settings = {
+  OPENROUTER_API_KEY: "",
+  OPENROUTER_MODEL: "",
+  OPENROUTER_EMBEDDINGS_MODEL: "",
+  SYSTEM_PROMPT: "",
+};
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [settings, setSettings] = useState<Settings>(EMPTY_SETTINGS);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(
+    localStorage.getItem("conversationId"),
+  );
+  const [chatInput, setChatInput] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const sortedMessages = useMemo(
+    () =>
+      [...messages].sort((a, b) =>
+        (a.created_at ?? "").localeCompare(b.created_at ?? ""),
+      ),
+    [messages],
+  );
+
+  useEffect(() => {
+    async function loadInitial() {
+      try {
+        const [settingsRes, docsRes] = await Promise.all([
+          fetch("/api/settings"),
+          fetch("/api/documents"),
+        ]);
+
+        if (settingsRes.ok) {
+          const data = await settingsRes.json();
+          setSettings({ ...EMPTY_SETTINGS, ...data });
+        }
+
+        if (docsRes.ok) {
+          const data = await docsRes.json();
+          setDocuments(data);
+        }
+
+        if (conversationId) {
+          const historyRes = await fetch(
+            `/api/chat/history?conversationId=${conversationId}`,
+          );
+          if (historyRes.ok) {
+            const history = await historyRes.json();
+            setMessages(history);
+          }
+        }
+      } catch (error) {
+        setStatus("Falha ao carregar dados iniciais.");
+      }
+    }
+
+    loadInitial();
+  }, [conversationId]);
+
+  async function handleSaveSettings(event: React.FormEvent) {
+    event.preventDefault();
+    setStatus(null);
+
+    const response = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      setStatus(data.error ?? "Falha ao salvar configuracoes.");
+      return;
+    }
+
+    setStatus("Configuracoes salvas.");
+  }
+
+  async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setStatus(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/api/documents/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    setUploading(false);
+    if (!response.ok) {
+      const data = await response.json();
+      setStatus(data.error ?? "Falha no upload.");
+      return;
+    }
+
+    const newDoc = await response.json();
+    setDocuments((prev) => [newDoc, ...prev]);
+  }
+
+  async function handleDeleteDocument(id: string) {
+    setStatus(null);
+    const response = await fetch(`/api/documents/${id}`, { method: "DELETE" });
+    if (!response.ok) {
+      const data = await response.json();
+      setStatus(data.error ?? "Falha ao excluir documento.");
+      return;
+    }
+
+    setDocuments((prev) => prev.filter((doc) => doc.id !== id));
+  }
+
+  async function handleSendMessage(event: React.FormEvent) {
+    event.preventDefault();
+    if (!chatInput.trim()) return;
+
+    setSending(true);
+    setStatus(null);
+
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: chatInput,
+        conversationId,
+        source: "test",
+      }),
+    });
+
+    setSending(false);
+    if (!response.ok) {
+      const data = await response.json();
+      setStatus(data.error ?? "Falha ao enviar mensagem.");
+      return;
+    }
+
+    const data = await response.json();
+    setConversationId(data.conversationId);
+    localStorage.setItem("conversationId", data.conversationId);
+    setChatInput("");
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: chatInput },
+      { role: "assistant", content: data.reply },
+    ]);
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="app-shell">
+      <header className="hero">
+        <div>
+          <p className="badge">AI + RAG + WhatsApp</p>
+          <h1>Central de Conversas Inteligentes</h1>
+          <p className="subtitle">
+            Configure modelos, alimente documentos e teste conversas antes de
+            colocar o WhatsApp em producao.
+          </p>
+        </div>
+        <div className="hero-card">
+          <h2>Status rapido</h2>
+          <ul>
+            <li>{documents.length} documentos carregados</li>
+            <li>{messages.length} mensagens no historico</li>
+            <li>
+              {settings.OPENROUTER_MODEL
+                ? `Modelo: ${settings.OPENROUTER_MODEL}`
+                : "Modelo nao configurado"}
+            </li>
+          </ul>
+        </div>
+      </header>
+
+      <main className="grid">
+        <section className="panel">
+          <h2>Configuracoes</h2>
+          <form className="stack" onSubmit={handleSaveSettings}>
+            <label>
+              OpenRouter API Key
+              <input
+                type="password"
+                placeholder="sk-..."
+                value={settings.OPENROUTER_API_KEY}
+                onChange={(event) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    OPENROUTER_API_KEY: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              Modelo principal
+              <input
+                type="text"
+                placeholder="gpt-4.1-mini"
+                value={settings.OPENROUTER_MODEL}
+                onChange={(event) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    OPENROUTER_MODEL: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              Modelo de embeddings
+              <input
+                type="text"
+                placeholder="text-embedding-3-small"
+                value={settings.OPENROUTER_EMBEDDINGS_MODEL}
+                onChange={(event) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    OPENROUTER_EMBEDDINGS_MODEL: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              System prompt
+              <textarea
+                rows={5}
+                value={settings.SYSTEM_PROMPT}
+                onChange={(event) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    SYSTEM_PROMPT: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <button className="primary" type="submit">
+              Salvar configuracoes
+            </button>
+          </form>
+        </section>
+
+        <section className="panel">
+          <h2>Documentos RAG</h2>
+          <div className="stack">
+            <label className="upload">
+              <input type="file" onChange={handleUpload} />
+              <span>{uploading ? "Enviando..." : "Enviar PDF, TXT ou MD"}</span>
+            </label>
+            <div className="documents">
+              {documents.length === 0 ? (
+                <p className="muted">Nenhum documento carregado.</p>
+              ) : (
+                documents.map((doc) => (
+                  <div className="doc" key={doc.id}>
+                    <div>
+                      <strong>{doc.filename}</strong>
+                      <span>{Math.round(doc.size / 1024)} KB</span>
+                    </div>
+                    <button
+                      className="ghost"
+                      onClick={() => handleDeleteDocument(doc.id)}
+                    >
+                      Remover
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="panel chat">
+          <h2>Chat de teste</h2>
+          <div className="chat-window">
+            {sortedMessages.length === 0 ? (
+              <p className="muted">Sem mensagens ainda. Envie a primeira!</p>
+            ) : (
+              sortedMessages.map((message, index) => (
+                <div
+                  key={`${message.role}-${index}`}
+                  className={`bubble ${message.role}`}
+                >
+                  <span>{message.content}</span>
+                </div>
+              ))
+            )}
+          </div>
+          <form className="chat-input" onSubmit={handleSendMessage}>
+            <input
+              type="text"
+              placeholder="Digite sua mensagem..."
+              value={chatInput}
+              onChange={(event) => setChatInput(event.target.value)}
+            />
+            <button className="primary" type="submit" disabled={sending}>
+              {sending ? "Enviando" : "Enviar"}
+            </button>
+          </form>
+        </section>
+      </main>
+
+      {status && <div className="status">{status}</div>}
+    </div>
+  );
 }
 
-export default App
+export default App;

@@ -1,0 +1,14 @@
+{
+  "name": "ai-rag-whatsapp-chat",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "npm --prefix frontend install",
+    "build": "npm --prefix frontend run build"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.95.3",
+    "formidable": "^3.5.1",
+    "pdf-parse": "^1.1.1"
+  }
+}

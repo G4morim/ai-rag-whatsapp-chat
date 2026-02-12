@@ -30,6 +30,42 @@ const EMPTY_SETTINGS: Settings = {
   SYSTEM_PROMPT: "",
 };
 
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)
+  ?.replace(/\/$/, "")
+  ?? "";
+
+function buildApiUrl(path: string) {
+  if (!API_BASE) return path;
+  if (path.startsWith("/")) return `${API_BASE}${path}`;
+  return `${API_BASE}/${path}`;
+}
+
+async function readResponseJson(response: Response) {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    const fallbackText = await response.text();
+    throw new Error(
+      `Resposta nao-JSON de ${response.url} (${response.status}). ${fallbackText.slice(0, 120)}`,
+    );
+  }
+
+  return response.json();
+}
+
+async function getErrorMessage(response: Response) {
+  try {
+    const data = await readResponseJson(response);
+    if (data && typeof data === "object" && "error" in data) {
+      const errorValue = (data as { error?: unknown }).error;
+      if (typeof errorValue === "string") return errorValue;
+    }
+  } catch (error) {
+    return (error as Error).message;
+  }
+
+  return `HTTP ${response.status}`;
+}
+
 function App() {
   const [settings, setSettings] = useState<Settings>(EMPTY_SETTINGS);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -54,32 +90,34 @@ function App() {
     async function loadInitial() {
       try {
         const [settingsRes, docsRes] = await Promise.all([
-          fetch("/api/settings"),
-          fetch("/api/documents"),
+          fetch(buildApiUrl("/api/settings")),
+          fetch(buildApiUrl("/api/documents")),
         ]);
 
         if (settingsRes.ok) {
-          const data = await settingsRes.json();
+          const data = await readResponseJson(settingsRes);
           setSettings({ ...EMPTY_SETTINGS, ...data });
         }
 
         if (docsRes.ok) {
-          const data = await docsRes.json();
+          const data = await readResponseJson(docsRes);
           setDocuments(data);
         }
 
         const savedConvId = localStorage.getItem("conversationId");
         if (savedConvId) {
           const historyRes = await fetch(
-            `/api/chat/history?conversationId=${savedConvId}`,
+            buildApiUrl(`/api/chat/history?conversationId=${savedConvId}`),
           );
           if (historyRes.ok) {
-            const history = await historyRes.json();
+            const history = await readResponseJson(historyRes);
             setMessages(history);
           }
         }
       } catch (error) {
-        setStatus("Falha ao carregar dados iniciais.");
+        setStatus(
+          `Falha ao carregar dados iniciais. ${(error as Error).message}`,
+        );
       }
     }
 
@@ -90,15 +128,15 @@ function App() {
     event.preventDefault();
     setStatus(null);
 
-    const response = await fetch("/api/settings", {
+    const response = await fetch(buildApiUrl("/api/settings"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
     });
 
     if (!response.ok) {
-      const data = await response.json();
-      setStatus(data.error ?? "Falha ao salvar configuracoes.");
+      const errorMessage = await getErrorMessage(response);
+      setStatus(errorMessage || "Falha ao salvar configuracoes.");
       return;
     }
 
@@ -115,28 +153,30 @@ function App() {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch("/api/documents/upload", {
+    const response = await fetch(buildApiUrl("/api/documents/upload"), {
       method: "POST",
       body: formData,
     });
 
     setUploading(false);
     if (!response.ok) {
-      const data = await response.json();
-      setStatus(data.error ?? "Falha no upload.");
+      const errorMessage = await getErrorMessage(response);
+      setStatus(errorMessage || "Falha no upload.");
       return;
     }
 
-    const newDoc = await response.json();
+    const newDoc = await readResponseJson(response);
     setDocuments((prev) => [newDoc, ...prev]);
   }
 
   async function handleDeleteDocument(id: string) {
     setStatus(null);
-    const response = await fetch(`/api/documents/${id}`, { method: "DELETE" });
+    const response = await fetch(buildApiUrl(`/api/documents/${id}`), {
+      method: "DELETE",
+    });
     if (!response.ok) {
-      const data = await response.json();
-      setStatus(data.error ?? "Falha ao excluir documento.");
+      const errorMessage = await getErrorMessage(response);
+      setStatus(errorMessage || "Falha ao excluir documento.");
       return;
     }
 
@@ -150,7 +190,7 @@ function App() {
     setSending(true);
     setStatus(null);
 
-    const response = await fetch("/api/chat", {
+    const response = await fetch(buildApiUrl("/api/chat"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -162,12 +202,12 @@ function App() {
 
     setSending(false);
     if (!response.ok) {
-      const data = await response.json();
-      setStatus(data.error ?? "Falha ao enviar mensagem.");
+      const errorMessage = await getErrorMessage(response);
+      setStatus(errorMessage || "Falha ao enviar mensagem.");
       return;
     }
 
-    const data = await response.json();
+    const data = await readResponseJson(response);
     setConversationId(data.conversationId);
     localStorage.setItem("conversationId", data.conversationId);
     setChatInput("");

@@ -14,6 +14,6 @@ export function withCors(handler) {
       return;
     }
 
-    return await handler(req, res);
+    await handler(req, res);
   };
 }

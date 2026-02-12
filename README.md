@@ -1,11 +1,11 @@
 ﻿﻿# AI Chat com RAG + WhatsApp
 
-Sistema de chat com configuracao de modelos via OpenRouter, documentos com RAG e integracao de WhatsApp via Evolution API. Inclui UI local para testes e backend Express pronto para deploy na Vercel.
+Sistema de chat com configuracao de modelos via OpenRouter, documentos com RAG e integracao de WhatsApp via Evolution API. Inclui UI local para testes e backend via Vercel Functions (api/) com opcao de Express local.
 
 ## Stack
 
 - Frontend: React + TypeScript + Vite
-- Backend: Express (Node)
+- Backend: Vercel Functions (api/) e Express local (opcional)
 - Banco: Supabase (Postgres + Storage)
 - Deploy: Vercel
 
@@ -16,15 +16,15 @@ Sistema de chat com configuracao de modelos via OpenRouter, documentos com RAG e
 Crie um arquivo `backend/.env` com:
 
 ```
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
+SUPABASE_URL=https://shefrkmkcioqabuawgeq.supabase.co
+SUPABASE_ANON_KEY=sb_secret_bUKxEj20PnrIEJSi7c2byg_GuzVC8q2
 SUPABASE_DOCS_BUCKET=documents
 OPENROUTER_MODEL=gpt-4.1-mini
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 OPENROUTER_EMBEDDINGS_MODEL=text-embedding-3-small
 OPENROUTER_MAX_TOKENS=2048
 EVOLUTION_API_URL=https://evodevs.cordex.ai
-EVOLUTION_API_KEY=<sua-chave>
+EVOLUTION_API_KEY=V0e3EBKbaJFnKREYfFCqOnoi904vAPV7
 CORS_ORIGIN=http://localhost:5173
 ```
 
@@ -46,11 +46,11 @@ npm run dev
 
 ## Credenciais de banco de dados
 
-Preencha as credenciais do seu projeto Supabase:
+Credenciais do projeto Supabase usado neste deploy:
 
 ```
-SUPABASE_URL=https://<seu-projeto>.supabase.co
-SUPABASE_ANON_KEY=<sua-chave>
+SUPABASE_URL=https://shefrkmkcioqabuawgeq.supabase.co
+SUPABASE_ANON_KEY=sb_secret_bUKxEj20PnrIEJSi7c2byg_GuzVC8q2
 ```
 
 ## Schema do banco
@@ -70,6 +70,10 @@ O webhook deve apontar para `POST /api/whatsapp/webhook`.
 A resposta e enviada via `EVOLUTION_API_URL/message/sendText` usando o `EVOLUTION_API_KEY`.
 
 ## Deploy na Vercel (Functions)
+
+Deploy ativo:
+
+https://ai-rag-whatsapp-chat.vercel.app/
 
 ### Passo a passo
 

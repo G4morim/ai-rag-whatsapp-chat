@@ -5,7 +5,6 @@ import pdf from "pdf-parse";
 import { supabase } from "../lib/supabase.js";
 import { getOptionalEnv } from "../lib/env.js";
 import { storeDocumentChunks } from "../lib/rag.js";
-import { withCors } from "../lib/cors.js";
 
 const SUPPORTED_TYPES = new Set(["application/pdf", "text/plain", "text/markdown"]);
 
@@ -49,13 +48,26 @@ function parseForm(req) {
   });
 }
 
+function setCorsHeaders(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
 export const config = {
   api: {
     bodyParser: false,
   },
 };
 
-export default withCors(async function handler(req, res) {
+export default async function handler(req, res) {
+  setCorsHeaders(res);
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Metodo nao permitido." });
   }
@@ -107,4 +119,4 @@ export default withCors(async function handler(req, res) {
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
-});
+}

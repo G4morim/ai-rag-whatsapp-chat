@@ -1,10 +1,22 @@
 import { supabase } from "../lib/supabase.js";
-import { withCors } from "../lib/cors.js";
 
-export default withCors(async function handler(req, res) {
+function setCorsHeaders(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+export default async function handler(req, res) {
+  setCorsHeaders(res);
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Metodo nao permitido." });
-});
+}
   const conversationId = req.query.conversationId;
 
   if (!conversationId) {
